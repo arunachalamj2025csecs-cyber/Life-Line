@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LifeLine Triage Assistant</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--surface-0, #f5f5f0); }
+        .container { max-width: 900px; margin: 0 auto; background: var(--surface-2, #fff); border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #185FA5 0%, #378ADD 100%); color: white; padding: 24px; border-radius: 12px 12px 0 0; }
+        .header h1 { font-size: 24px; margin-bottom: 4px; }
+        .header p { font-size: 13px; opacity: 0.9; }
+        .content { padding: 24px; }
+        .section { margin-bottom: 24px; }
+        .section-title { font-size: 14px; font-weight: 600; color: var(--text-secondary, #666); text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.5px; }
+        .tab-buttons { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+        .tab-btn { padding: 10px 16px; border: 1px solid var(--border, #ddd); border-radius: 8px; background: var(--surface-1, #f9f9f7); cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; }
+        .tab-btn.active { background: #185FA5; color: white; border-color: #185FA5; }
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--text-primary, #000); }
+        .form-input, .form-select, .form-textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border, #ddd); border-radius: 8px; font-size: 13px; font-family: inherit; }
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: #378ADD; box-shadow: 0 0 0 2px rgba(55, 138, 221, 0.1); }
+        .form-textarea { resize: vertical; min-height: 80px; }
+        .vitals-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+        .vital-input { padding: 12px; border: 1px solid var(--border, #ddd); border-radius: 8px; background: var(--surface-1, #f9f9f7); }
+        .vital-input label { display: block; font-size: 12px; color: var(--text-secondary, #666); margin-bottom: 4px; font-weight: 500; }
+        .vital-input input { width: 100%; padding: 8px; border: 1px solid var(--border, #ddd); border-radius: 4px; font-size: 13px; }
+        .chat-messages { max-height: 400px; overflow-y: auto; background: var(--surface-1, #f9f9f7); border-radius: 8px; padding: 12px; margin-bottom: 16px; }
+        .message { margin-bottom: 12px; padding: 10px 12px; border-radius: 6px; font-size: 13px; line-height: 1.5; }
+        .message.ai { background: #E6F1FB; color: #042C53; border-left: 3px solid #185FA5; }
+        .message.user { background: #E1F5EE; color: #04342C; border-left: 3px solid #0F6E56; }
+        .question-btn { padding: 8px 12px; margin: 4px 4px 4px 0; background: white; border: 1px solid #378ADD; color: #185FA5; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.2s; }
+        .question-btn:hover { background: #E6F1FB; }
+        .button-group { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+        .btn { padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; }
+        .btn-primary { background: #185FA5; color: white; }
+        .btn-primary:hover { background: #0C447C; }
+        .btn-secondary { background: white; border: 1px solid var(--border, #ddd); color: var(--text-primary, #000); }
+        .btn-secondary:hover { background: var(--surface-1, #f9f9f7); }
+        .btn-danger { background: #E24B4A; color: white; }
+        .btn-success { background: #639922; color: white; }
+        .summary-card { background: var(--surface-1, #f9f9f7); border: 1px solid var(--border, #ddd); border-radius: 8px; padding: 16px; margin: 12px 0; }
+        .summary-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border, #ddd); }
+        .summary-row:last-child { border-bottom: none; }
+        .summary-label { font-weight: 500; color: var(--text-secondary, #666); }
+        .summary-value { color: var(--text-primary, #000); }
+        .triage-badge { display: inline-block; padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 12px; }
+        .emergency { background: #E24B4A; color: white; }
+        .same-day { background: #BA7517; color: white; }
+        .routine { background: #639922; color: white; }
+        .offline-indicator { display: inline-block; padding: 4px 8px; background: #999; color: white; border-radius: 4px; font-size: 11px; margin-left: 8px; }
+        .language-select { padding: 8px 12px; border: 1px solid var(--border, #ddd); border-radius: 6px; }
+        .patient-id-input { max-width: 200px; }
+        .red-flag-warning { background: #FCEBEB; border: 1px solid #E24B4A; border-left: 4px solid #E24B4A; padding: 12px; border-radius: 6px; margin-bottom: 16px; }
+        .red-flag-warning p { color: #A32D2D; font-weight: 500; font-size: 13px; margin-bottom: 4px; }
+    
+        /* Responsive layout */
+        html { -webkit-text-size-adjust: 100%; }
+        body { padding: clamp(8px, 3vw, 24px); overflow-x: hidden; }
+        .container { width: 100%; }
+        button, input, select, textarea { max-width: 100%; }
+        @media (max-width: 600px) {
+          .container { border-radius: 8px; }
+          .header { padding: 18px 16px; }
+          .header h1 { font-size: 21px; }
+          .content { padding: 16px; }
+          .tab-buttons { gap: 6px; }
+          .tab-btn { flex: 1 1 auto; padding: 10px; }
+          .vitals-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .summary-row { gap: 10px; align-items: flex-start; }
+          .summary-value { text-align: right; overflow-wrap: anywhere; }
+          .button-group { flex-direction: column; }
+          .button-group .btn { width: 100%; }
+          .patient-id-input { max-width: 100%; }
+        }
+        @media (max-width: 360px) { .vitals-grid { grid-template-columns: 1fr; } }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏥 LifeLine Triage Assistant</h1>
+            <p>Intelligent patient prioritization for rural primary health centers</p>
+            <span class="offline-indicator" id="offlineStatus" style="display:none;">📡 Offline Mode</span>
+        </div>
+        
+        <div class="content">
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="switchTab('patient-intake')">Patient Intake</button>
+                <button class="tab-btn" onclick="switchTab('doctor-dashboard')">Doctor Dashboard</button>
+                <button class="tab-btn" onclick="switchTab('settings')">Settings</button>
+            </div>
+
+            <!-- PATIENT INTAKE TAB -->
+            <div id="patient-intake" class="tab-content">
+                <div class="section">
+                    <div class="section-title">Initialization Settings</div>
+                    <div class="form-group">
+                        <label class="form-label">Patient Language Preference</label>
+                        <select class="language-select" id="language" onchange="changeLanguage()">
+                            <option value="en">English</option>
+                            <option value="hi">Hindi (हिंदी)</option>
+                            <option value="ta">Tamil (தமிழ்)</option>
+                            <option value="te">Telugu (తెలుగు)</option>
+                            <option value="ka">Kannada (ಕನ್ನಡ)</option>
+                            <option value="ml">Malayalam (മലയാളം)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Patient ID / Queue Position</label>
+                        <input type="text" class="form-input patient-id-input" id="patientId" placeholder="e.g., P-001 or Queue Pos 5">
+                    </div>
+                </div>
+
+                <div id="redFlagWarning" class="red-flag-warning" style="display:none;">
+                    <p>⚠️ CRITICAL RED FLAG DETECTED</p>
+                    <p id="redFlagText">This patient requires immediate emergency attention.</p>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">Vitals Input (Optional)</div>
+                    <div class="vitals-grid">
+                        <div class="vital-input">
+                            <label>Blood Pressure (mmHg)</label>
+                            <input type="text" id="vital_bp" placeholder="e.g., 120/80">
+                        </div>
+                        <div class="vital-input">
+                            <label>Temperature (°C)</label>
+                            <input type="number" id="vital_temp" placeholder="e.g., 37.5" step="0.1">
+                        </div>
+                        <div class="vital-input">
+                            <label>SpO₂ (%)</label>
+                            <input type="number" id="vital_spo2" placeholder="e.g., 98" min="0" max="100">
+                        </div>
+                        <div class="vital-input">
+                            <label>Heart Rate (bpm)</label>
+                            <input type="number" id="vital_hr" placeholder="e.g., 72" min="0" max="200">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">Conversational Triage</div>
+                    <div class="chat-messages" id="chatMessages"></div>
+                    <div id="questionButtons" style="margin-bottom: 12px;"></div>
+                    <div class="form-group">
+                        <textarea class="form-textarea" id="userInput" placeholder="Type patient's response..."></textarea>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn btn-primary" onclick="sendMessage()">Send Response</button>
+                        <button class="btn btn-secondary" onclick="skipQuestion()">Skip Question</button>
+                        <button class="btn btn-secondary" onclick="resetIntake()">Reset & Start Over</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DOCTOR DASHBOARD TAB -->
+            <div id="doctor-dashboard" class="tab-content" style="display:none;">
+                <div class="section">
+                    <div class="section-title">Patient Queue Summary</div>
+                    <div id="queueSummary" style="text-align: center; color: var(--text-secondary, #666); padding: 32px;">
+                        Start a patient intake to generate doctor's summary.
+                    </div>
+                    <div id="doctorSummary"></div>
+                </div>
+
+                <div class="section" id="historicalData" style="display:none;">
+                    <div class="section-title">Session History (Offline Storage)</div>
+                    <div id="historyList"></div>
+                    <button class="btn btn-secondary" onclick="clearHistory()" style="margin-top: 12px;">Clear All History</button>
+                </div>
+            </div>
+
+            <!-- SETTINGS TAB -->
+            <div id="settings" class="tab-content" style="display:none;">
+                <div class="section">
+                    <div class="section-title">System Configuration</div>
+                    <p style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary, #666);">
+                        This system uses browser storage (localStorage) to operate offline. All patient data is stored locally on this device.
+                    </p>
+                    <div style="background: var(--surface-1, #f9f9f7); padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+                        <p style="font-size: 12px; font-weight: 500; margin-bottom: 6px;">Storage Status</p>
+                        <p style="font-size: 13px;" id="storageStatus">Checking...</p>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">About LifeLine</div>
+                    <p style="font-size: 13px; line-height: 1.6; color: var(--text-primary, #000); margin-bottom: 12px;">
+                        <strong>LifeLine Triage Assistant v1.0</strong><br><br>
+                        A hybrid AI-powered pre-consultation triage system for rural primary health centers. Combines rule-based red-flag detection with LLM-driven conversational assessment.
+                    </p>
+                    <div style="background: var(--surface-1, #f9f9f7); padding: 12px; border-radius: 8px; font-size: 12px;">
+                        <p><strong>Safety-First Design:</strong></p>
+                        <ul style="margin-left: 16px; margin-top: 6px;">
+                            <li>No diagnoses or prescriptions provided</li>
+                            <li>All decisions overridable by doctors</li>
+                            <li>Red-flag escalation for life-threatening conditions</li>
+                            <li>Rationale provided for all classifications</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============ CORE DATA & LANGUAGE SYSTEM ============
+        const languages = {
+            en: { name: 'English', greetings: ['Hello! What is your main symptom or concern today?'] },
+            hi: { name: 'Hindi', greetings: ['नमस्ते! आज आपकी मुख्य समस्या क्या है?'] },
+            ta: { name: 'Tamil', greetings: ['வணக்கம்! இன்று உங்களுக்கு என்ன முக்கிய பிரச்சினை உள்ளது?'] },
+            te: { name: 'Telugu', greetings: ['నమస్కారం! ఈ రోజు మీకు ఏ ప్రధాన సమస్య ఉంది?'] },
+            ka: { name: 'Kannada', greetings: ['ನಮಸ್ಕಾರ! ಇಂದು ನಿಮಗೆ ಏನು ಮುಖ್ಯ ಸಮಸ್ಯೆ ಇದೆ?'] },
+            ml: { name: 'Malayalam', greetings: ['നമസ്കാരം! ഇന്ന് നിങ്ങൾക്കെന്തെങ്കിലും പ്രധാനപ്പെട്ട ബുദ്ധിമുട്ട് ഉണ്ടോ?'] }
+        };
+
+        // ============ RED FLAG DETECTION ENGINE ============
+        const redFlags = {
+            unconsciousness: { keywords: ['unconscious', 'fainted', 'unresponsive', 'मूर्छित', 'சுயநினைவு இல்லாத'], severity: 'CRITICAL' },
+            severeBreathing: { keywords: ['not breathing', 'gasping', 'severe breathlessness', 'श्वसन', 'சுவாசிக்க முடியவில்லை'], severity: 'CRITICAL' },
+            severeChestPain: { keywords: ['crushing chest pain', 'chest pain severe', 'वक्ष दर्द', 'நெஞ்சு வலி'], severity: 'CRITICAL' },
+            severeBleeding: { keywords: ['severe bleeding', 'profuse bleeding', 'रक्तस्राव', 'கடுமையான இரத்தப்போக்கு'], severity: 'CRITICAL' },
+            vitalsAlertBP: { check: (vitals) => vitals.bp_sys > 180 || vitals.bp_sys < 60, severity: 'CRITICAL' },
+            vitalsAlertSpo2: { check: (vitals) => vitals.spo2 < 90, severity: 'CRITICAL' },
+            vitalsAlertTemp: { check: (vitals) => vitals.temp > 40 || vitals.temp < 35, severity: 'CRITICAL' }
+        };
+
+        // ============ STATE MANAGEMENT ============
+        let currentLang = 'en';
+        let triageState = {
+            patientId: '',
+            patientProfile: {},
+            language: 'en',
+            vitals: { bp: '', temp: '', spo2: '', hr: '' },
+            symptoms: [],
+            duration: '',
+            onset: '',
+            redFlagTriggered: false,
+            triageCategory: null,
+            conversationHistory: [],
+            questionIndex: 0
+        };
+
+        // ============ ADAPTIVE QUESTIONS ============
+        const adaptiveQuestions = {
+            en: [
+                'How long have you had this symptom?',
+                'Did it start suddenly or gradually?',
+                'Is there anything that makes it worse or better?',
+                'Do you have fever, cough, or shortness of breath?',
+                'Any recent injuries, accidents, or falls?',
+                'Are you taking any medications?'
+            ],
+            hi: [
+                'आपको यह समस्या कितने समय से है?',
+                'यह अचानक शुरू हुआ या धीरे-धीरे?',
+                'कुछ ऐसा है जो इसे बदतर या बेहतर करता है?',
+                'क्या आपको बुखार, खांसी, या सांस लेने में परेशानी है?',
+                'क्या हाल ही में कोई चोट, दुर्घटना या गिरावट हुई है?',
+                'क्या आप कोई दवाई ले रहे हैं?'
+            ],
+            ta: [
+                'இந்த அறிகுறி உங்களுக்கு எவ்வளவு காலமாக உள்ளது?',
+                'இது திடீரென்று தொடங்கியதா அல்லது படிப்படியாகவா?',
+                'இதை மோசமாக்குவது அல்லது சிறப்பாக்குவது ஏதாவது உள்ளதா?',
+                'உங்களுக்கு காய்ச்சல், இருமல், அல்லது சுவாசிப்பதில் சிரமம் உள்ளதா?',
+                'சமீபத்தில் ஏதேனும் காயம், விபத்து அல்லது விழவுண்டாயிருந்ததா?',
+                'நீங்கள் ஏதேனும் மருந்து சாப்பிடுகிறீர்களா?'
+            ]
+        };
+
+        // Add other languages' questions following the same pattern
+        adaptiveQuestions.te = adaptiveQuestions.en;
+        adaptiveQuestions.ka = adaptiveQuestions.en;
+        adaptiveQuestions.ml = adaptiveQuestions.en;
+
+        // ============ TRIAGE LOGIC ENGINE ============
+        function detectRedFlags() {
+            const allText = (triageState.symptoms.join(' ') + ' ' + triageState.duration).toLowerCase();
+            
+            for (let flag in redFlags) {
+                if (redFlags[flag].keywords) {
+                    for (let keyword of redFlags[flag].keywords) {
+                        if (allText.includes(keyword.toLowerCase())) {
+                            return { triggered: true, flag, severity: redFlags[flag].severity };
+                        }
+                    }
+                }
+            }
+
+            // Check vitals
+            const vitals = parseVitals();
+            if (vitals.bp_sys > 180 || vitals.bp_sys < 60 || vitals.spo2 < 90 || vitals.temp > 40 || vitals.temp < 35) {
+                return { triggered: true, flag: 'vitals', severity: 'CRITICAL' };
+            }
+
+            return { triggered: false };
+        }
+
+        function parseVitals() {
+            const bp = triageState.vitals.bp.split('/');
+            return {
+                bp_sys: parseInt(bp[0]) || 0,
+                bp_dia: parseInt(bp[1]) || 0,
+                temp: parseFloat(triageState.vitals.temp) || 0,
+                spo2: parseFloat(triageState.vitals.spo2) || 0,
+                hr: parseFloat(triageState.vitals.hr) || 0
+            };
+        }
+
+        function classifyTriage() {
+            const redFlagCheck = detectRedFlags();
+            if (redFlagCheck.triggered) {
+                return { category: 'EMERGENCY', rationale: 'Critical red flag detected. Requires immediate medical attention.' };
+            }
+
+            const symptoms = triageState.symptoms.join(' ').toLowerCase();
+            const duration = triageState.duration.toLowerCase();
+
+            // EMERGENCY indicators
+            if (symptoms.includes('severe') || symptoms.includes('critical') || duration.includes('sudden')) {
+                return { category: 'EMERGENCY', rationale: 'Severe symptoms with acute onset require immediate evaluation.' };
+            }
+
+            // SAME-DAY indicators
+            if (symptoms.includes('moderate') || symptoms.includes('pain') || symptoms.includes('fever') || duration.includes('2-3 days')) {
+                return { category: 'SAME-DAY', rationale: 'Moderate symptoms requiring same-day physician evaluation.' };
+            }
+
+            // ROUTINE
+            return { category: 'ROUTINE', rationale: 'Stable chronic or mild acute condition. Can be seen at next available slot.' };
+        }
+
+        // ============ UI FUNCTIONS ============
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(tab).style.display = 'block';
+            event.target.classList.add('active');
+        }
+
+        function changeLanguage() {
+            currentLang = document.getElementById('language').value;
+            triageState.language = currentLang;
+            addMessage('ai', languages[currentLang].greetings[0]);
+            triageState.questionIndex = 0;
+            updateQuestionButtons();
+        }
+
+        function addMessage(role, text) {
+            const msg = document.createElement('div');
+            msg.className = `message ${role}`;
+            msg.textContent = text;
+            document.getElementById('chatMessages').appendChild(msg);
+            document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
+            triageState.conversationHistory.push({ role, text });
+        }
+
+        function updateQuestionButtons() {
+            const container = document.getElementById('questionButtons');
+            container.innerHTML = '';
+            if (triageState.questionIndex < adaptiveQuestions[currentLang].length) {
+                const q = adaptiveQuestions[currentLang][triageState.questionIndex];
+                addMessage('ai', q);
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('userInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            addMessage('user', message);
+            triageState.symptoms.push(message);
+            input.value = '';
+
+            const status = document.getElementById('storageStatus');
+            if (status) status.textContent = '🤖 AI is assessing your message…';
+
+            try {
+                const response = await fetch((window.LIFELINE_API_URL || 'http://127.0.0.1:8000') + '/api/triage', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        patient: triageState.patientProfile || {},
+                        language: currentLang,
+                        message,
+                        conversation: triageState.conversationHistory,
+                        vitals: triageState.vitals
+                    })
+                });
+                if (!response.ok) throw new Error(`AI backend returned ${response.status}`);
+                const result = await response.json();
+                addMessage('ai', result.reply);
+                triageState.lastAiResult = result;
+
+                if (result.priority === 'EMERGENCY') {
+                    triageState.redFlagTriggered = true;
+                    triageState.triageCategory = 'EMERGENCY';
+                    completeTriage(result);
+                    return;
+                }
+
+                triageState.questionIndex++;
+                if (triageState.questionIndex < 6 && result.needs_more_information) {
+                    if (result.reply) return;
+                    updateQuestionButtons();
+                } else if (triageState.questionIndex >= 6) {
+                    completeTriage(result);
+                }
+                if (status) status.textContent = '✓ Connected to LifeLine AI backend';
+            } catch (error) {
+                console.error('AI backend error:', error);
+                addMessage('ai', 'The AI service is temporarily unavailable. Please continue with the safety questions; a deterministic safety check will still be applied.');
+                triageState.questionIndex++;
+                if (triageState.questionIndex < 6) updateQuestionButtons();
+                else completeTriage();
+                if (status) status.textContent = '⚠ AI backend unavailable; safety fallback active';
+            }
+        }
+
+        function skipQuestion() {
+            triageState.questionIndex++;
+            if (triageState.questionIndex < adaptiveQuestions[currentLang].length) {
+                updateQuestionButtons();
+            } else {
+                completeTriage();
+            }
+        }
+
+        function completeTriage(aiResult = null) {
+            const redFlagCheck = detectRedFlags();
+            if (redFlagCheck.triggered) {
+                document.getElementById('redFlagWarning').style.display = 'block';
+                document.getElementById('redFlagText').textContent = `CRITICAL: ${redFlagCheck.flag} - Immediate medical intervention required.`;
+                triageState.redFlagTriggered = true;
+            }
+
+            const triage = aiResult || classifyTriage();
+            const category = aiResult?.priority || aiResult?.category || triage.category;
+            const rationale = aiResult?.rationale || triage.rationale;
+            triageState.triageCategory = category;
+            triageState.aiRationale = rationale;
+            triageState.aiConfidence = aiResult?.confidence ?? null;
+            triageState.aiRedFlags = aiResult?.red_flags || [];
+
+            addMessage('ai', `Assessment complete. Triage Category: ${category}. Rationale: ${rationale}`);
+
+            if (category === 'EMERGENCY') {
+                const warning = document.getElementById('redFlagWarning');
+                if (warning) warning.style.display = 'block';
+                const text = document.getElementById('redFlagText');
+                if (text) text.textContent = 'EMERGENCY PRIORITY APPROVED — MEET DOCTOR IMMEDIATELY.';
+            }
+
+            setTimeout(() => generateDoctorSummary(), 500);
+            saveToLocalStorage();
+        }
+
+        function generateDoctorSummary() {
+            const vitals = parseVitals();
+            const vitalsText = triageState.vitals.bp ? `BP: ${triageState.vitals.bp} | Temp: ${triageState.vitals.temp}°C | SpO₂: ${triageState.vitals.spo2}% | HR: ${triageState.vitals.hr}bpm` : 'Not provided';
+            
+            const summary = `
+                <div class="summary-card">
+                    <div class="summary-row">
+                        <span class="summary-label">Patient ID:</span>
+                        <span class="summary-value">${triageState.patientId || 'Not Provided'}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Chief Complaint:</span>
+                        <span class="summary-value">${triageState.symptoms[0] || 'Not recorded'}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Key Indicators:</span>
+                        <span class="summary-value">${triageState.symptoms.slice(0, 2).join(', ')}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Vitals:</span>
+                        <span class="summary-value" style="font-size: 12px;">${vitalsText}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Triage Category:</span>
+                        <span class="summary-value"><span class="triage-badge ${triageState.triageCategory.toLowerCase()}">${triageState.triageCategory}</span></span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Red Flag Alert:</span>
+                        <span class="summary-value">${triageState.redFlagTriggered ? '⚠️ YES - CRITICAL' : '✓ No red flags'}</span>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('queueSummary').innerHTML = summary;
+            document.getElementById('historyList').innerHTML += summary;
+            document.getElementById('historicalData').style.display = 'block';
+        }
+
+        function resetIntake() {
+            triageState = {
+                patientId: triageState.patientId || '',
+                patientProfile: triageState.patientProfile || {},
+                language: currentLang,
+                vitals: { bp: '', temp: '', spo2: '', hr: '' },
+                symptoms: [],
+                duration: '',
+                onset: '',
+                redFlagTriggered: false,
+                triageCategory: null,
+                conversationHistory: [],
+                questionIndex: 0
+            };
+            document.getElementById('chatMessages').innerHTML = '';
+            document.getElementById('userInput').value = '';
+            document.getElementById('redFlagWarning').style.display = 'none';
+            ['vital_bp', 'vital_temp', 'vital_spo2', 'vital_hr'].forEach(id => document.getElementById(id).value = '');
+            changeLanguage();
+        }
+
+        function clearHistory() {
+            if (confirm('Clear all stored patient data?')) {
+                localStorage.removeItem('triageHistory');
+                document.getElementById('historyList').innerHTML = '';
+                document.getElementById('historicalData').style.display = 'none';
+            }
+        }
+
+        async function saveToLocalStorage() {
+            const timestamp = new Date().toISOString();
+            let history = JSON.parse(localStorage.getItem('triageHistory')) || [];
+            history.push({
+                timestamp,
+                ...triageState
+            });
+            localStorage.setItem('triageHistory', JSON.stringify(history));
+
+            // Also persist the AI-assistant result to the shared Supabase queue.
+            if (window.supabase && window.LIFELINE_SUPABASE_URL && window.LIFELINE_SUPABASE_KEY) {
+                try {
+                    const client = window.supabase.createClient(
+                        window.LIFELINE_SUPABASE_URL,
+                        window.LIFELINE_SUPABASE_KEY
+                    );
+                    const patientId = triageState.patientId ||
+                        `P-${Date.now().toString().slice(-8)}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
+
+                    const bp = triageState.vitals.bp || '';
+                    const [bpSystolic, bpDiastolic] = bp.split('/').map(v => parseInt(v, 10));
+
+                    const { error } = await client.from('patients').upsert({
+                        patient_id: patientId,
+                        patient_name: triageState.patientProfile?.name || 'AI Assistant Patient',
+                        age: triageState.patientProfile?.age ?? null,
+                        gender: triageState.patientProfile?.gender || null,
+                        language: triageState.language || 'en',
+                        chief_complaint: triageState.symptoms[0] || 'Not provided',
+                        duration_days: parseInt(triageState.duration, 10) || 1,
+                        symptoms: triageState.symptoms || [],
+                        medical_history: [],
+                        vitals: {
+                            bp_systolic: Number.isFinite(bpSystolic) ? bpSystolic : null,
+                            bp_diastolic: Number.isFinite(bpDiastolic) ? bpDiastolic : null,
+                            temperature_c: parseFloat(triageState.vitals.temp) || null,
+                            spo2: parseFloat(triageState.vitals.spo2) || null,
+                            heart_rate: parseFloat(triageState.vitals.hr) || null
+                        },
+                        raw_transcript: triageState.conversationHistory?.map(m => `${m.role}: ${m.text}`).join('\n') || null,
+                        priority: triageState.triageCategory,
+                        triggered_red_flags: triageState.redFlagTriggered ? ['AI Assistant red flag'] : [],
+                        rationale: triageState.aiRationale || (triageState.redFlagTriggered
+                            ? 'Emergency priority from the deterministic safety engine.'
+                            : 'Priority assigned by the LifeLine AI triage backend.'),
+                        confidence: triageState.aiConfidence,
+                        timestamp,
+                        is_overridden: false
+                    }, { onConflict: 'patient_id' });
+
+                    if (error) throw error;
+                    triageState.patientId = patientId;
+                    const status = document.getElementById('storageStatus');
+                    if (status) status.textContent = '✓ Saved locally and synced to Supabase';
+                } catch (error) {
+                    console.error('Supabase sync failed:', error);
+                    const status = document.getElementById('storageStatus');
+                    if (status) status.textContent = '⚠ Saved locally; Supabase sync failed';
+                }
+            }
+        }
+
+        // ============ INITIALIZATION ============
+        try {
+            const profile = JSON.parse(sessionStorage.getItem('lifelinePatientProfile') || 'null');
+            if (profile) {
+                triageState.patientProfile = profile;
+                document.getElementById('patientId').value = profile.name || '';
+            }
+        } catch (e) {
+            console.warn('Patient session could not be loaded:', e);
+        }
+
+        window.addEventListener('online', () => document.getElementById('offlineStatus').style.display = 'none');
+        window.addEventListener('offline', () => document.getElementById('offlineStatus').style.display = 'inline-block');
+
+        if (!navigator.onLine) {
+            document.getElementById('offlineStatus').style.display = 'inline-block';
+        }
+
+        // Initialize storage status
+        try {
+            const test = '__test__';
+            localStorage.setItem(test, test);
+            localStorage.removeItem(test);
+            document.getElementById('storageStatus').textContent = '✓ Local storage available (' + Math.round(JSON.stringify(localStorage).length / 1024) + ' KB used)';
+        } catch (e) {
+            document.getElementById('storageStatus').textContent = '✗ Local storage unavailable';
+        }
+
+        // Start conversation
+        triageState.patientId = document.getElementById('patientId').value;
+        changeLanguage();
+    </script>
+</body>
+</html>
